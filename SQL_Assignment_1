@@ -1,0 +1,229 @@
+create database ASSIGNMENT_1 ;
+
+use  "ASSIGNMENT_1" ;
+
+
+-- #################################################################################################################################################
+-- #################################################################################################################################################
+-- ----------------------------------------------TASK 1 --------------------------------------------------------------------
+-- #################################################################################################################################################
+-- #################################################################################################################################################
+
+
+create table shopping_history (
+product varchar(50) not null,
+quantity int not null,
+unit_price int not null ) ;
+
+insert into shopping_history (product,quantity, unit_price)
+values('apples', 12, 24),
+('bananas', 14, 8),
+('oranges', 6, 13),
+('guavas', 12, 8),
+('pine_apple', 4, 15),
+('apples',6,35),
+('oranges', 12, 3),
+('papaya', 3, 30),
+('chocolates', 5,5),
+('chocolates', 15, 2),
+('biscuits', 12, 4),
+('water_bottle', 2, 20);
+
+select * from shopping_history ;
+
+select product, sum(quantity * unit_price) as total_cost from shopping_history group by product  order by product desc ; 
+
+
+
+-- #################################################################################################################################################
+-- #################################################################################################################################################
+-- ----------------------------------------------TASK 2 --------------------------------------------------------------------
+-- #################################################################################################################################################
+-- #################################################################################################################################################
+
+
+create table phones (
+name varchar(20) not null unique,
+phone_number integer not null unique );
+
+create table calls(
+id integer not null,
+caller integer not null,
+callee integer not null,
+duration integer not null,
+unique(id)
+);
+
+insert into phones values('Solomon',7896),
+('John', 7458),
+('Mark', 4569),
+('Luke', 4698),
+('Elijah', 8521),
+('Mathews', 9632),
+('Paul', 1452),
+('Joseph', 3652),
+('James', 8547),
+('Peter', 4589),
+('Titus', 9658),
+('King David', 2587),
+('Moses', 1236),
+('Issac', 1203) ;
+
+select * from phones ;
+
+insert into calls values (205, 4589, 3652, 8),
+(7, 1203, 1236, 2 ),
+(18, 9658, 4589, 4),
+(2, 8547, 2587, 3 ),
+(3, 7896, 7458, 1 ),
+(5, 8521, 3652, 1),
+(29, 9658, 9632, 4),
+(67, 8547, 8521, 1),
+(54, 7896, 7458, 2),
+(87, 4698, 4589, 1),
+(09, 4569, 3652, 3),
+(212, 1203, 9658, 2), 
+(217, 4589, 8547, 4), 
+(216, 2587, 9658, 2), 
+(2231, 4569, 1236, 1), 
+(28891, 8521, 2587, 1),
+(19, 2587, 1452, 1), 
+(213, 1452, 9632, 1), 
+(291, 7458, 1236, 1), 
+(261, 7458, 1452, 1), 
+(2451, 4698, 9658, 1), 
+(2190, 3652, 8547, 1),
+(907, 1236, 1203, 2),
+(214, 3652, 7896, 2),
+(210, 8547, 1203, 5),
+(2901, 9632, 2587, 2),
+(2671, 1203, 9632, 1),
+(2761, 7458, 1452, 1) ;
+
+select * from calls ;
+
+with total_duration as (
+select caller as caller_number ,sum(duration) as talktime from calls group by caller
+union all
+select callee as caller_number ,sum(duration) as talktime from calls group by callee 
+)
+select name from phones p
+join total_duration td on td.caller_number = p.phone_number 
+group by name 
+having sum(talktime) >= 10
+order by name  ;
+
+
+-- #################################################################################################################################################
+-- #################################################################################################################################################
+-- ----------------------------------------------TASK 3 --------------------------------------------------------------------
+-- #################################################################################################################################################
+-- #################################################################################################################################################
+
+
+
+create table transactions(
+amount INTEGER NOT NULL,
+date DATE NOT NULL );
+
+insert into transactions values
+(1000,'2020-01-06'),
+(-10, '2020-1-14'),
+(-75, '2020-01-20'),
+(-5, '2020-01-25'),
+(-4, '2020-01-29'),
+(2000, '2020-03-10'),
+(-75, '2020-03-12'),
+(-20, '2020-03-15'),
+(40, '2020-03-15'),
+(-50, '2020-03-17'),
+(200, '2020-10-10'),
+(-200, '2020-10-10') ;
+
+select * from transactions ;
+
+
+-- APPROACH-1 ---
+select sum(INCOMING_TRANSFER) + sum(CREDIT_CARD_PAYMENT)  + sum(CREDIT_CARD_FEE)
+from (
+select MON ,  
+	sum(case when amount > 0 then amount else 0 end) AS INCOMING_TRANSFER,
+    sum(case when amount < 0 then amount else 0  end) AS CREDIT_CARD_PAYMENT,
+    sum(case when amount < 0 then 1 else 0 end) AS TOTAL_CREDIT_TRANSACTIONS,
+    (case when
+	abs(CREDIT_CARD_PAYMENT) < 100
+		or
+	TOTAL_CREDIT_TRANSACTIONS < 3 then -5 else 0 end) CREDIT_CARD_FEE
+from (select month(date) AS MON ,amount from transactions
+      union all
+      select level, DUMMY from
+(select '0' DUMMY) dual
+connect by prior level <12)
+group by 1
+order by 1 );
+
+
+
+-- APPROACH-2 ---
+with CTE_BALANCE as (
+select MON,
+sum(case when amount > 0 then amount else 0 end) as INCOMING_TRANSFER,
+sum(case when amount < 0 then amount else 0 end) as CREDIT_CARD_PAYMENT,
+case when abs(sum(case when amount < 0 then amount else 0 end)) < 100 
+			or
+ sum(case when amount < 0 then 1 else 0 end) < 3 then -5 else 0 end AS CREDIT_CARD_FEE
+from (select month(date) MON,amount from transactions
+      union all
+      select level, amount from
+(select '0' amount) dual
+connect by prior level <12)
+      group by 1 order by 1 )
+select sum(INCOMING_TRANSFER) + sum(CREDIT_CARD_PAYMENT) + sum(CREDIT_CARD_FEE) AS BALANCE from CTE_BALANCE ;
+
+
+
+-- APPROACH-3 ---
+-- this approach is same as APPROACH-1. But insteasd conncet by level function used union operation for missing months of the transactions. --
+
+select sum(INCOMING_TRANSFER) + sum(CREDIT_CARD_PAYMENT)  + sum(CREDIT_CARD_FEE) AS BALANCE
+from (
+select MON ,  
+	sum(case when amount > 0 then amount else 0 end) AS INCOMING_TRANSFER,
+    sum(case when amount < 0 then amount else 0  end) AS CREDIT_CARD_PAYMENT,
+    sum(case when amount < 0 then 1 else 0 end) AS TOTAL_CREDIT_TRANSACTIONS,
+    (case when
+	abs(CREDIT_CARD_PAYMENT) < 100
+		or
+	TOTAL_CREDIT_TRANSACTIONS < 3 then -5 else 0 end) CREDIT_CARD_FEE
+from (select month(date) AS MON ,amount from transactions
+     UNION SELECT 1,0
+     UNION SELECT 2,0 
+     UNION SELECT 3,0 
+     UNION SELECT 4,0
+     UNION SELECT 5,0
+     UNION SELECT 6,0
+     UNION SELECT 7,0
+     UNION SELECT 8,0
+     UNION SELECT 9,0
+     UNION SELECT 10,0
+     UNION SELECT 11,0
+     UNION SELECT 12,0)
+group by 1
+order by 1 );
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
